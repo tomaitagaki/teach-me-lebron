@@ -28,9 +28,9 @@ function displayTeams(teams) {
         teamItem.className = 'team-item';
         teamItem.innerHTML = `
             <strong>${team.team_name}</strong>
-            <span style="margin-left: auto; color: #999; font-size: 14px;">
+            <span style="margin-left: auto; color: #65676b; font-size: 13px;">
                 ${team.sport.toUpperCase()}
-                ${team.is_local ? '📍 Local' : ''}
+                ${team.is_local ? ' • Local' : ''}
             </span>
         `;
         teamsList.appendChild(teamItem);
@@ -134,6 +134,34 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function addVideoClip(clip) {
+    const messagesDiv = document.getElementById('messages');
+    const clipDiv = document.createElement('div');
+    clipDiv.className = 'message assistant';
+
+    const youtubeUrl = `https://www.youtube.com/embed/${clip.youtube_id}`;
+    const timestampParam = clip.timestamp ? `?start=${clip.timestamp}` : '';
+
+    clipDiv.innerHTML = `
+        <div class="message-content">
+            <div class="video-embed">
+                <iframe
+                    src="${youtubeUrl}${timestampParam}"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen
+                ></iframe>
+                <div class="video-caption">
+                    <strong>${escapeHtml(clip.title)}</strong><br>
+                    ${escapeHtml(clip.description)}
+                </div>
+            </div>
+        </div>
+    `;
+
+    messagesDiv.appendChild(clipDiv);
+    scrollToBottom();
+}
+
 async function sendMessage(messageText = null, showUserMessage = true) {
     const input = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
@@ -209,6 +237,9 @@ async function sendMessage(messageText = null, showUserMessage = true) {
                                 contentDiv.innerHTML = formatMessage(assistantMessage);
                                 scrollToBottom();
                             }
+                        } else if (parsed.type === 'clip' && parsed.clip) {
+                            // Add video clip
+                            addVideoClip(parsed.clip);
                         } else if (parsed.type === 'done') {
                             // Stream complete
                             break;

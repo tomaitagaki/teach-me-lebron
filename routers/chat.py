@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from models import ChatMessage, UserPreferences, ChatMode
+from models import ChatMessage, UserPreferences, ChatMode, SportsClip
 from services.openrouter import OpenRouterService
 from services.sports_news import SportsNewsService
+from services.clips_database import search_clips
 import json
 from typing import AsyncGenerator
 
@@ -11,19 +12,18 @@ llm_service = OpenRouterService()
 sports_service = SportsNewsService()
 
 
-SPORTS_LORE_SYSTEM_PROMPT = """You are a friendly sports expert who explains sports concepts, history, and lore in simple, layman's terms.
+SPORTS_LORE_SYSTEM_PROMPT = """You are a sports expert who explains sports concepts, history, and lore in simple, clear terms.
 
-Your goal is to help people who don't follow sports closely understand enough to participate in casual conversations with coworkers and friends.
+Your goal is to help people who don't follow sports understand enough to participate in casual work conversations.
 
 Guidelines:
 - Explain things simply, avoiding jargon or explaining any jargon you use
 - Use analogies and comparisons to make concepts relatable
 - Keep responses concise but informative
 - Add context about why something matters or is significant
-- Be enthusiastic but not overwhelming
-- If asked about current events, provide background context
+- When relevant video clips are available, they will be shown automatically
 
-Remember: Your audience wants to blend in at the water cooler, not become sports analysts."""
+Your audience wants to blend in at work, not become sports analysts. Keep it simple and practical."""
 
 SPORTS_NEWS_SYSTEM_PROMPT = """You are a sports news summarizer who presents important sports news in simple, conversational language.
 
@@ -55,14 +55,20 @@ async def create_sse_stream(content: str) -> AsyncGenerator[str, None]:
 
 async def stream_llm_response(
     messages: list[dict],
-    system_prompt: str
+    system_prompt: str,
+    clips: list[dict] = None
 ) -> AsyncGenerator[str, None]:
-    """Stream LLM response as SSE events."""
+    """Stream LLM response as SSE events, optionally including video clips."""
     yield f"data: {json.dumps({'type': 'start'})}\n\n"
 
     try:
         async for token in llm_service.stream_chat_completion(messages, system_prompt):
             yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+        # After text is done, send clips if any
+        if clips:
+            for clip in clips:
+                yield f"data: {json.dumps({'type': 'clip', 'clip': clip})}\n\n"
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -130,15 +136,25 @@ async def chat_stream(chat_message: ChatMessage):
 
     else:
         # Reactive mode: Answer user's question
+
+        # Search for relevant clips
+        relevant_clips = search_clips(chat_message.message, max_results=2)
+
+        # Add clip context to the message if found
+        message_content = chat_message.message
+        if relevant_clips:
+            clip_context = "\n\n[Note: Relevant video clips are available and will be shown to the user automatically]"
+            message_content += clip_context
+
         messages = [
             {
                 "role": "user",
-                "content": chat_message.message
+                "content": message_content
             }
         ]
 
         return StreamingResponse(
-            stream_llm_response(messages, SPORTS_LORE_SYSTEM_PROMPT),
+            stream_llm_response(messages, SPORTS_LORE_SYSTEM_PROMPT, clips=relevant_clips),
             media_type="text/event-stream"
         )
 
