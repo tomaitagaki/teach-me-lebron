@@ -9,6 +9,13 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - Get explanations in simple, jargon-free language
 - Perfect for understanding what everyone's talking about at the water cooler
 
+### 🎥 Infamous Sports Clips
+- **20+ iconic sports moments** automatically shown when relevant
+- Includes: Kawhi's bounce, JR Smith's blunder, Beast Quake, Malcolm Butler INT
+- Also: 28-3 comeback, Butt Fumble, Malice at Palace, and more
+- YouTube embeds with context and explanations
+- Keyword-based search matches your questions to clips
+
 ### 📰 Proactive News
 - Automatically get updates on important sports news
 - Focused on **playoff games** and **local team news** only
@@ -19,11 +26,12 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - **Seattle default**: Mariners (MLB), Seahawks (NFL)
 - Easily customizable for other locations
 
-### ⚡ Modern UX
-- **Real-time streaming responses** using Server-Sent Events (SSE)
-- Token-by-token streaming for that ChatGPT-like experience
-- Beautiful, responsive chat interface
-- Sub-100ms response time perception
+### ⚡ Clean, Functional UI
+- **Minimal design** inspired by Meta internal tooling
+- Simple gray/white color scheme with blue accents
+- Real-time streaming responses using Server-Sent Events (SSE)
+- Token-by-token streaming for instant feedback
+- No clutter, no distractions - just information
 
 ## Tech Stack
 
@@ -141,6 +149,13 @@ Bot: "Here's what's happening with your teams:
 • Seattle Mariners are in playoff contention..."
 ```
 
+### See Infamous Moments
+```
+User: "Tell me about the Kawhi Leonard shot"
+Bot: "In Game 7 of the 2019 playoffs, Kawhi hit a buzzer beater that bounced FOUR times..."
+[YouTube video automatically appears below]
+```
+
 ### Understand Terminology
 ```
 User: "What's a wildcard in baseball?"
@@ -177,6 +192,26 @@ self.other_city_teams = {
 }
 ```
 
+### Adding More Clips
+
+Edit `services/clips_database.py` to add new infamous moments:
+
+```python
+"your_clip_id": {
+    "keywords": ["keyword1", "keyword2", "phrase"],
+    "title": "Display Title",
+    "description": "Brief context about what happened",
+    "youtube_id": "YouTubeVideoID",
+    "timestamp": None  # or seconds to start at
+}
+```
+
+Current clips include:
+- **NBA**: Kawhi's bounce, JR Smith blunder, Malice at Palace, LeBron's block, Ray Allen's three
+- **NFL**: Beast Quake, Malcolm Butler INT, 28-3 comeback, Butt Fumble, Helmet Catch
+- **MLB**: 1995 Mariners comeback
+- **Other**: Zidane headbutt, Minneapolis Miracle, Double Doink
+
 ## Project Structure
 
 ```
@@ -190,11 +225,12 @@ teach-me-lebron/
 │   └── onboarding.py     # User onboarding endpoints
 ├── services/
 │   ├── openrouter.py     # OpenRouter LLM integration
-│   └── sports_news.py    # ESPN API integration
+│   ├── sports_news.py    # ESPN API integration
+│   └── clips_database.py # Infamous sports clips database
 └── static/
     ├── index.html        # Chat interface
     ├── chat.js          # Frontend logic with SSE handling
-    └── styles.css       # UI styling
+    └── styles.css       # Minimal Meta-style UI
 ```
 
 ## How It Works
