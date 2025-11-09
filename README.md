@@ -33,6 +33,20 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - Token-by-token streaming for instant feedback
 - No clutter, no distractions - just information
 
+### 💬 Conversation History
+- **Persistent chat history** with SQLite database
+- Automatic context loading (last 8 messages) for better conversations
+- History preserved across page refreshes
+- Clear history button when you want to start fresh
+- Messages and video clips saved automatically
+
+### 📊 Comprehensive Logging
+- **Structured logging** with daily log files
+- Detailed error tracking with stack traces
+- API call logging and performance metrics
+- User-friendly error messages in UI
+- 429 rate limit errors now clearly explained
+
 ## Tech Stack
 
 - **Backend**: FastAPI (Python) with async/await
@@ -40,6 +54,8 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - **Sports Data**: ESPN API (free, no key required)
 - **Streaming**: Server-Sent Events (SSE)
 - **Frontend**: Vanilla JavaScript with modern ES6+
+- **Database**: SQLite for chat history
+- **Logging**: Python logging with file rotation
 
 ## Prerequisites
 
@@ -219,18 +235,24 @@ teach-me-lebron/
 ├── main.py                 # FastAPI application entry point
 ├── config.py              # Configuration and settings
 ├── models.py              # Pydantic data models
+├── logging_config.py      # Logging setup and configuration
 ├── requirements.txt       # Python dependencies
 ├── routers/
-│   ├── chat.py           # Chat endpoints with SSE streaming
+│   ├── chat.py           # Chat endpoints with SSE streaming & history
 │   └── onboarding.py     # User onboarding endpoints
 ├── services/
-│   ├── openrouter.py     # OpenRouter LLM integration
+│   ├── openrouter.py     # OpenRouter LLM integration with logging
 │   ├── sports_news.py    # ESPN API integration
-│   └── clips_database.py # Infamous sports clips database
-└── static/
-    ├── index.html        # Chat interface
-    ├── chat.js          # Frontend logic with SSE handling
-    └── styles.css       # Minimal Meta-style UI
+│   ├── clips_database.py # Infamous sports clips database
+│   └── chat_history.py   # SQLite chat history service
+├── static/
+│   ├── index.html        # Chat interface with clear history
+│   ├── chat.js          # Frontend with history loading & SSE
+│   └── styles.css       # Minimal Meta-style UI
+├── data/                  # SQLite database (auto-created)
+│   └── chat_history.db   # Conversation storage
+└── logs/                  # Log files (auto-created)
+    └── app_YYYYMMDD.log  # Daily log files
 ```
 
 ## How It Works
@@ -253,6 +275,22 @@ teach-me-lebron/
 - Tokens arrive as `data:` prefixed JSON events
 - Frontend parses and displays incrementally
 - Provides ChatGPT-like streaming UX
+
+### Chat History System
+1. User sends message → saved to SQLite immediately
+2. Backend loads last 8 messages for context
+3. LLM generates response with conversation awareness
+4. Assistant response + clips saved after streaming
+5. On page load, frontend fetches and displays last 20 messages
+6. Clear history button deletes all user data
+
+### Error Handling & Logging
+1. All API calls logged with timestamps and parameters
+2. HTTP errors (429, 401, etc.) caught and logged
+3. User sees friendly error messages in UI
+4. Logs saved to `logs/app_YYYYMMDD.log`
+5. Rate limit errors show helpful guidance
+6. Errors automatically dismissed after 10 seconds
 
 ## Customization
 
