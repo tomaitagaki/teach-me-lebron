@@ -60,3 +60,13 @@ class ChatMode(str, Enum):
     """Chat interaction mode."""
     REACTIVE = "reactive"  # User asks question
     PROACTIVE = "proactive"  # System provides news
+
+
+class SportsClip(BaseModel):
+    """Sports video clip/highlight."""
+    clip_id: str
+    title: str
+    description: str
+    youtube_id: str
+    timestamp: Optional[int] = None
+    keywords: List[str] = []

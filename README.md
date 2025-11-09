@@ -9,6 +9,13 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - Get explanations in simple, jargon-free language
 - Perfect for understanding what everyone's talking about at the water cooler
 
+### 🎥 Infamous Sports Clips
+- **20+ iconic sports moments** automatically shown when relevant
+- Includes: Kawhi's bounce, JR Smith's blunder, Beast Quake, Malcolm Butler INT
+- Also: 28-3 comeback, Butt Fumble, Malice at Palace, and more
+- YouTube embeds with context and explanations
+- Keyword-based search matches your questions to clips
+
 ### 📰 Proactive News
 - Automatically get updates on important sports news
 - Focused on **playoff games** and **local team news** only
@@ -19,11 +26,26 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - **Seattle default**: Mariners (MLB), Seahawks (NFL)
 - Easily customizable for other locations
 
-### ⚡ Modern UX
-- **Real-time streaming responses** using Server-Sent Events (SSE)
-- Token-by-token streaming for that ChatGPT-like experience
-- Beautiful, responsive chat interface
-- Sub-100ms response time perception
+### ⚡ Clean, Functional UI
+- **Minimal design** inspired by Meta internal tooling
+- Simple gray/white color scheme with blue accents
+- Real-time streaming responses using Server-Sent Events (SSE)
+- Token-by-token streaming for instant feedback
+- No clutter, no distractions - just information
+
+### 💬 Conversation History
+- **Persistent chat history** with SQLite database
+- Automatic context loading (last 8 messages) for better conversations
+- History preserved across page refreshes
+- Clear history button when you want to start fresh
+- Messages and video clips saved automatically
+
+### 📊 Comprehensive Logging
+- **Structured logging** with daily log files
+- Detailed error tracking with stack traces
+- API call logging and performance metrics
+- User-friendly error messages in UI
+- 429 rate limit errors now clearly explained
 
 ## Tech Stack
 
@@ -32,6 +54,8 @@ A modern, AI-powered chatbot that helps you keep up with sports conversations at
 - **Sports Data**: ESPN API (free, no key required)
 - **Streaming**: Server-Sent Events (SSE)
 - **Frontend**: Vanilla JavaScript with modern ES6+
+- **Database**: SQLite for chat history
+- **Logging**: Python logging with file rotation
 
 ## Prerequisites
 
@@ -141,6 +165,13 @@ Bot: "Here's what's happening with your teams:
 • Seattle Mariners are in playoff contention..."
 ```
 
+### See Infamous Moments
+```
+User: "Tell me about the Kawhi Leonard shot"
+Bot: "In Game 7 of the 2019 playoffs, Kawhi hit a buzzer beater that bounced FOUR times..."
+[YouTube video automatically appears below]
+```
+
 ### Understand Terminology
 ```
 User: "What's a wildcard in baseball?"
@@ -177,6 +208,26 @@ self.other_city_teams = {
 }
 ```
 
+### Adding More Clips
+
+Edit `services/clips_database.py` to add new infamous moments:
+
+```python
+"your_clip_id": {
+    "keywords": ["keyword1", "keyword2", "phrase"],
+    "title": "Display Title",
+    "description": "Brief context about what happened",
+    "youtube_id": "YouTubeVideoID",
+    "timestamp": None  # or seconds to start at
+}
+```
+
+Current clips include:
+- **NBA**: Kawhi's bounce, JR Smith blunder, Malice at Palace, LeBron's block, Ray Allen's three
+- **NFL**: Beast Quake, Malcolm Butler INT, 28-3 comeback, Butt Fumble, Helmet Catch
+- **MLB**: 1995 Mariners comeback
+- **Other**: Zidane headbutt, Minneapolis Miracle, Double Doink
+
 ## Project Structure
 
 ```
@@ -184,17 +235,24 @@ teach-me-lebron/
 ├── main.py                 # FastAPI application entry point
 ├── config.py              # Configuration and settings
 ├── models.py              # Pydantic data models
+├── logging_config.py      # Logging setup and configuration
 ├── requirements.txt       # Python dependencies
 ├── routers/
-│   ├── chat.py           # Chat endpoints with SSE streaming
+│   ├── chat.py           # Chat endpoints with SSE streaming & history
 │   └── onboarding.py     # User onboarding endpoints
 ├── services/
-│   ├── openrouter.py     # OpenRouter LLM integration
-│   └── sports_news.py    # ESPN API integration
-└── static/
-    ├── index.html        # Chat interface
-    ├── chat.js          # Frontend logic with SSE handling
-    └── styles.css       # UI styling
+│   ├── openrouter.py     # OpenRouter LLM integration with logging
+│   ├── sports_news.py    # ESPN API integration
+│   ├── clips_database.py # Infamous sports clips database
+│   └── chat_history.py   # SQLite chat history service
+├── static/
+│   ├── index.html        # Chat interface with clear history
+│   ├── chat.js          # Frontend with history loading & SSE
+│   └── styles.css       # Minimal Meta-style UI
+├── data/                  # SQLite database (auto-created)
+│   └── chat_history.db   # Conversation storage
+└── logs/                  # Log files (auto-created)
+    └── app_YYYYMMDD.log  # Daily log files
 ```
 
 ## How It Works
@@ -217,6 +275,22 @@ teach-me-lebron/
 - Tokens arrive as `data:` prefixed JSON events
 - Frontend parses and displays incrementally
 - Provides ChatGPT-like streaming UX
+
+### Chat History System
+1. User sends message → saved to SQLite immediately
+2. Backend loads last 8 messages for context
+3. LLM generates response with conversation awareness
+4. Assistant response + clips saved after streaming
+5. On page load, frontend fetches and displays last 20 messages
+6. Clear history button deletes all user data
+
+### Error Handling & Logging
+1. All API calls logged with timestamps and parameters
+2. HTTP errors (429, 401, etc.) caught and logged
+3. User sees friendly error messages in UI
+4. Logs saved to `logs/app_YYYYMMDD.log`
+5. Rate limit errors show helpful guidance
+6. Errors automatically dismissed after 10 seconds
 
 ## Customization
 

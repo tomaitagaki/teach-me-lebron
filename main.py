@@ -4,7 +4,12 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from routers import chat, onboarding
 from config import get_settings
+from logging_config import setup_logging, get_logger
 import uvicorn
+
+# Initialize logging
+setup_logging(log_level="INFO", log_file=True)
+logger = get_logger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -12,6 +17,8 @@ app = FastAPI(
     description="A chatbot that helps you keep up with sports conversations in layman's terms",
     version="1.0.0"
 )
+
+logger.info("Application starting up...")
 
 # CORS middleware for development
 app.add_middleware(
@@ -44,6 +51,7 @@ async def health_check():
 
 if __name__ == "__main__":
     settings = get_settings()
+    logger.info(f"Starting server on {settings.host}:{settings.port}")
     uvicorn.run(
         "main:app",
         host=settings.host,
