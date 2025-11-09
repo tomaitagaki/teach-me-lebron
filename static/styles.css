@@ -42,6 +42,21 @@ body {
     color: #65676b;
 }
 
+.clear-history-btn {
+    background: transparent;
+    color: #65676b;
+    border: 1px solid #ccd0d5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.clear-history-btn:hover {
+    background: #f0f2f5;
+}
+
 .onboarding {
     padding: 24px;
     display: none;

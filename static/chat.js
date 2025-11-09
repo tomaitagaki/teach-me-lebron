@@ -37,12 +37,64 @@ function displayTeams(teams) {
     });
 }
 
-function completeOnboarding() {
+async function completeOnboarding() {
     document.getElementById('onboarding').classList.remove('active');
     document.getElementById('chatContainer').classList.add('active');
 
+    // Show clear history button
+    document.getElementById('clearHistoryBtn').style.display = 'block';
+
+    // Load chat history first
+    await loadChatHistory();
+
     // Check for proactive news on startup
     checkForProactiveNews();
+}
+
+async function loadChatHistory() {
+    const userId = 'default_user';
+
+    try {
+        const response = await fetch(`/api/chat/history/${userId}?limit=20`);
+        if (!response.ok) {
+            console.error('Failed to load chat history');
+            return;
+        }
+
+        const data = await response.json();
+        const messages = data.messages || [];
+
+        // Clear initial welcome message
+        const messagesDiv = document.getElementById('messages');
+        messagesDiv.innerHTML = '';
+
+        // Display messages from history
+        for (const msg of messages) {
+            if (msg.role === 'user') {
+                addUserMessage(msg.content);
+            } else if (msg.role === 'assistant') {
+                addAssistantMessage(msg.content);
+
+                // Add clips if present
+                if (msg.clips && msg.clips.length > 0) {
+                    for (const clip of msg.clips) {
+                        addVideoClip(clip);
+                    }
+                }
+            }
+        }
+
+        // If no history, show welcome message
+        if (messages.length === 0) {
+            addAssistantMessage('Ask me about sports history, current events, or request the latest news on your teams.');
+        }
+
+        console.log(`Loaded ${messages.length} messages from history`);
+    } catch (error) {
+        console.error('Error loading chat history:', error);
+        // Show welcome message on error
+        addAssistantMessage('Ask me about sports history, current events, or request the latest news on your teams.');
+    }
 }
 
 async function checkForProactiveNews() {
@@ -286,14 +338,60 @@ function showError(message) {
     const messagesDiv = document.getElementById('messages');
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
+
+    // Parse error message for special cases
+    if (message.includes('Rate limit')) {
+        errorDiv.innerHTML = `
+            <strong>Rate Limit Reached</strong><br>
+            The free API tier has limited requests. Please wait a moment before trying again.
+        `;
+    } else if (message.includes('authentication') || message.includes('API key')) {
+        errorDiv.innerHTML = `
+            <strong>API Configuration Error</strong><br>
+            Please check your OpenRouter API key in the .env file.
+        `;
+    } else if (message.includes('Network')) {
+        errorDiv.innerHTML = `
+            <strong>Connection Error</strong><br>
+            Please check your internet connection and try again.
+        `;
+    } else {
+        errorDiv.textContent = message;
+    }
+
     messagesDiv.appendChild(errorDiv);
     scrollToBottom();
 
-    // Remove error after 5 seconds
+    // Remove error after 10 seconds
     setTimeout(() => {
         errorDiv.remove();
-    }, 5000);
+    }, 10000);
+}
+
+async function clearHistory() {
+    const userId = 'default_user';
+
+    if (!confirm('Are you sure you want to clear your chat history? This cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/chat/history/${userId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            // Clear UI
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '';
+            addAssistantMessage('Chat history cleared. Ask me anything about sports!');
+        } else {
+            showError('Failed to clear chat history. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error clearing history:', error);
+        showError('Failed to clear chat history. Please try again.');
+    }
 }
 
 // Initialize on page load

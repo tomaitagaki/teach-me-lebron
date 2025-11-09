@@ -9,8 +9,15 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Teach Me LeBron</h1>
-            <p>Sports lore chatbot</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1>Teach Me LeBron</h1>
+                    <p>Sports lore chatbot</p>
+                </div>
+                <button class="clear-history-btn" onclick="clearHistory()" title="Clear chat history" style="display: none;" id="clearHistoryBtn">
+                    Clear History
+                </button>
+            </div>
         </div>
 
         <!-- Onboarding Section -->

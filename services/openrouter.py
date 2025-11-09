@@ -2,6 +2,9 @@ import httpx
 import json
 from typing import AsyncGenerator
 from config import get_settings
+from logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class OpenRouterService:
@@ -12,6 +15,7 @@ class OpenRouterService:
         self.base_url = self.settings.openrouter_base_url
         self.api_key = self.settings.openrouter_api_key
         self.model = self.settings.openrouter_model
+        logger.info(f"OpenRouterService initialized with model: {self.model}")
 
     async def stream_chat_completion(
         self,
@@ -39,30 +43,67 @@ class OpenRouterService:
             "stream": True,
         }
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            async with client.stream(
-                "POST",
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload
-            ) as response:
-                response.raise_for_status()
+        logger.debug(f"Starting streaming completion with {len(messages)} messages")
 
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]  # Remove "data: " prefix
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    # Check for HTTP errors
+                    if response.status_code == 429:
+                        logger.error(f"Rate limit exceeded (429) for OpenRouter API. Model: {self.model}")
+                        raise httpx.HTTPStatusError(
+                            "Rate limit exceeded. Please try again in a moment.",
+                            request=response.request,
+                            response=response
+                        )
+                    elif response.status_code == 401:
+                        logger.error("Authentication failed (401) - Invalid API key")
+                        raise httpx.HTTPStatusError(
+                            "Invalid API key. Please check your OpenRouter credentials.",
+                            request=response.request,
+                            response=response
+                        )
+                    elif response.status_code >= 400:
+                        logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
+                        response.raise_for_status()
 
-                        if data == "[DONE]":
-                            break
+                    response.raise_for_status()
+                    logger.debug("Successfully connected to OpenRouter stream")
 
-                        try:
-                            chunk = json.loads(data)
-                            if "choices" in chunk and len(chunk["choices"]) > 0:
-                                delta = chunk["choices"][0].get("delta", {})
-                                if "content" in delta:
-                                    yield delta["content"]
-                        except json.JSONDecodeError:
-                            continue
+                    token_count = 0
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]  # Remove "data: " prefix
+
+                            if data == "[DONE]":
+                                logger.debug(f"Stream completed. Total tokens: {token_count}")
+                                break
+
+                            try:
+                                chunk = json.loads(data)
+                                if "choices" in chunk and len(chunk["choices"]) > 0:
+                                    delta = chunk["choices"][0].get("delta", {})
+                                    if "content" in delta:
+                                        token_count += 1
+                                        yield delta["content"]
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"Failed to parse SSE chunk: {e}")
+                                continue
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error during streaming: {e.response.status_code} - {str(e)}")
+            raise
+        except httpx.RequestError as e:
+            logger.error(f"Request error during streaming: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error during streaming: {str(e)}", exc_info=True)
+            raise
 
     async def get_chat_completion(
         self,
@@ -90,12 +131,45 @@ class OpenRouterService:
             "stream": False,
         }
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
+        logger.debug(f"Requesting non-streaming completion with {len(messages)} messages")
+
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                )
+
+                if response.status_code == 429:
+                    logger.error(f"Rate limit exceeded (429) for OpenRouter API. Model: {self.model}")
+                    raise httpx.HTTPStatusError(
+                        "Rate limit exceeded. Please try again in a moment.",
+                        request=response.request,
+                        response=response
+                    )
+                elif response.status_code == 401:
+                    logger.error("Authentication failed (401) - Invalid API key")
+                    raise httpx.HTTPStatusError(
+                        "Invalid API key. Please check your OpenRouter credentials.",
+                        request=response.request,
+                        response=response
+                    )
+                elif response.status_code >= 400:
+                    logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
+
+                response.raise_for_status()
+                result = response.json()
+                content = result["choices"][0]["message"]["content"]
+                logger.debug(f"Received completion: {len(content)} characters")
+                return content
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error: {e.response.status_code} - {str(e)}")
+            raise
+        except httpx.RequestError as e:
+            logger.error(f"Request error: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+            raise
